@@ -25,7 +25,7 @@ async fn main() {
 
     let http_client = Arc::new(Client::new(token.clone()));
 
-    let config = Config::new(token.clone(), Intents::GUILD_PRESENCES);
+    let config = Config::new(token.clone(), Intents::GUILD_PRESENCES | Intents::GUILD_MEMBERS);
     let shards = create_recommended(&http_client, config, |_, builder| builder.build())
         .await
         .unwrap()
