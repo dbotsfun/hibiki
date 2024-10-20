@@ -4,7 +4,7 @@ use tokio::task::JoinSet;
 use twilight_gateway::{create_recommended, Config, EventTypeFlags, StreamExt};
 use twilight_http::Client;
 use twilight_model::gateway::event::Event;
-use twilight_model::gateway::presence::ActivityType;
+use twilight_model::gateway::presence::{ActivityType, Status};
 use twilight_model::gateway::Intents;
 use twilight_model::http::interaction::{
     InteractionResponse, InteractionResponseData, InteractionResponseType,
@@ -66,7 +66,7 @@ async fn main() {
                             .unwrap();
                     }
                     Event::PresenceUpdate(presence) => {
-                        let custom_activity = presence.activities.iter().any(|a| {
+                        let custom_activity = presence.status != Status::Offline && presence.activities.iter().any(|a| {
                             a.kind == ActivityType::Custom
                                 && a.state
                                     .as_ref()
