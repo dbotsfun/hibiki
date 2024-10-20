@@ -133,7 +133,7 @@ async fn promoters(ctx: &SlashContext<()>) -> DefaultCommandResult {
         .filter(|member| {
             member
                 .roles
-                .contains(&Id::<RoleMarker>::new(1201246584382439475u64))
+                .contains(&Id::<RoleMarker>::new(1297596217198510210u64))
         })
         .count();
 
