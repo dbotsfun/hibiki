@@ -33,7 +33,7 @@ async fn main() {
 
     let framework = Arc::new(
         Framework::builder(http_client.clone(), Id::new(application_id), ())
-            .command(hello)
+            .command(promoters)
             .build(),
     );
 
@@ -124,8 +124,19 @@ async fn main() {
 }
 
 #[command]
-#[description("Hewwo!")]
-async fn hello(ctx: &SlashContext<()>) -> DefaultCommandResult {
+#[description("Check how many promoters there are")]
+async fn promoters(ctx: &SlashContext<()>) -> DefaultCommandResult {
+    let guild = ctx.http_client().guild(ctx.interaction.guild_id.unwrap()).await?.model().await?;
+    let promoters = guild
+        .members
+        .iter()
+        .filter(|member| {
+            member
+                .roles
+                .contains(&Id::<RoleMarker>::new(1201246584382439475u64))
+        })
+        .count();
+
     ctx.interaction_client
         .create_response(
             ctx.interaction.id,
@@ -133,7 +144,7 @@ async fn hello(ctx: &SlashContext<()>) -> DefaultCommandResult {
             &InteractionResponse {
                 kind: InteractionResponseType::ChannelMessageWithSource,
                 data: Some(InteractionResponseData {
-                    content: Some(String::from("Hello!")),
+                    content: Some(format!("There are {promoters} promoters right now!")),
                     ..Default::default()
                 }),
             },
