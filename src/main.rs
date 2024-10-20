@@ -66,7 +66,11 @@ async fn main() {
                             .unwrap();
                     }
                     Event::PresenceUpdate(presence) => {
-                        let custom_activity = presence.status != Status::Offline && presence.activities.iter().any(|a| {
+                        if presence.status != Status::Offline {
+                            return;
+                        };
+
+                        let custom_activity = presence.activities.iter().any(|a| {
                             a.kind == ActivityType::Custom
                                 && a.state
                                     .as_ref()
