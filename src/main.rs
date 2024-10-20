@@ -66,7 +66,7 @@ async fn main() {
                             .unwrap();
                     }
                     Event::PresenceUpdate(presence) => {
-                        if presence.status != Status::Offline {
+                        if presence.status == Status::Offline {
                             return;
                         };
 
