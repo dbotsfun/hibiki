@@ -126,9 +126,8 @@ async fn main() {
 #[command]
 #[description("Check how many promoters there are")]
 async fn promoters(ctx: &SlashContext<()>) -> DefaultCommandResult {
-    let guild = ctx.http_client().guild(ctx.interaction.guild_id.unwrap()).await?.model().await?;
-    let promoters = guild
-        .members
+    let members = ctx.http_client().guild_members(ctx.interaction.guild_id.unwrap()).await?.model().await?;
+    let promoters = members
         .iter()
         .filter(|member| {
             member
