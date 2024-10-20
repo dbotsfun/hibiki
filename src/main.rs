@@ -1,5 +1,3 @@
-#![feature(try_find)]
-
 use std::env;
 use std::sync::Arc;
 use tokio::task::JoinSet;
