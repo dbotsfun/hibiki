@@ -1,17 +1,14 @@
+mod commands;
+mod framework;
+mod handlers;
+
+use framework::build_framework;
 use std::env;
 use std::sync::Arc;
 use tokio::task::JoinSet;
-use twilight_gateway::{create_recommended, Config, EventTypeFlags, StreamExt};
+use twilight_gateway::{create_recommended, Config};
 use twilight_http::Client;
-use twilight_model::gateway::event::Event;
-use twilight_model::gateway::presence::{ActivityType, Status};
 use twilight_model::gateway::Intents;
-use twilight_model::http::interaction::{
-    InteractionResponse, InteractionResponseData, InteractionResponseType,
-};
-use twilight_model::id::marker::RoleMarker;
-use twilight_model::id::Id;
-use vesper::prelude::*;
 
 #[tokio::main]
 async fn main() {
@@ -25,130 +22,24 @@ async fn main() {
 
     let http_client = Arc::new(Client::new(token.clone()));
 
-    let config = Config::new(token.clone(), Intents::GUILD_PRESENCES | Intents::GUILD_MEMBERS);
+    let config = Config::new(
+        token.clone(),
+        Intents::GUILD_PRESENCES | Intents::GUILD_MEMBERS,
+    );
     let shards = create_recommended(&http_client, config, |_, builder| builder.build())
         .await
         .unwrap()
         .collect::<Vec<_>>();
 
-    let framework = Arc::new(
-        Framework::builder(http_client.clone(), Id::new(application_id), ())
-            .command(promoters)
-            .build(),
-    );
+    let framework = build_framework(http_client.clone(), application_id);
 
     let mut set = JoinSet::new();
     for mut shard in shards {
         let framework = Arc::clone(&framework);
         set.spawn(async move {
-            while let Some(item) = shard.next_event(EventTypeFlags::all()).await {
-                let Ok(event) = item else {
-                    eprintln!("error receiving event: {:?}", item.unwrap_err());
-                    continue;
-                };
-                match event {
-                    Event::Ready(_) => {
-                        println!("Ready");
-                        framework.register_global_commands().await.unwrap();
-                    }
-                    Event::InteractionCreate(interaction) => {
-                        framework.process(interaction.0).await;
-                    }
-                    Event::MemberAdd(member) => {
-                        framework
-                            .http_client()
-                            .add_guild_member_role(
-                                member.guild_id,
-                                member.user.id,
-                                Id::<RoleMarker>::new(1201246584382439475u64),
-                            )
-                            .await
-                            .unwrap();
-                    }
-                    Event::PresenceUpdate(presence) => {
-                        if presence.status == Status::Offline {
-                            return;
-                        };
-
-                        let custom_activity = presence.activities.iter().any(|a| {
-                            a.kind == ActivityType::Custom
-                                && a.state
-                                    .as_ref()
-                                    .map_or(false, |state| state.contains("dbots.fun"))
-                        });
-
-                        if custom_activity {
-                            println!("Added role to user");
-                            framework
-                                .http_client()
-                                .add_guild_member_role(
-                                    presence.guild_id,
-                                    presence.user.id(),
-                                    Id::<RoleMarker>::new(1297596217198510210u64),
-                                )
-                                .await
-                                .unwrap();
-                        } else {
-                            let has_role = framework
-                                .http_client()
-                                .guild_member(presence.guild_id, presence.user.id())
-                                .await
-                                .unwrap()
-                                .model()
-                                .await
-                                .unwrap()
-                                .roles
-                                .contains(&Id::<RoleMarker>::new(1297596217198510210u64));
-
-                            if has_role {
-                                framework
-                                    .http_client()
-                                    .remove_guild_member_role(
-                                        presence.guild_id,
-                                        presence.user.id(),
-                                        Id::<RoleMarker>::new(1297596217198510210u64),
-                                    )
-                                    .await
-                                    .unwrap();
-                                println!("Removed role from user");
-                            }
-                        }
-                    }
-                    _ => (),
-                }
-            }
+            handlers::handle_shard_events(&mut shard, framework).await;
         });
     }
 
     while set.join_next().await.is_some() {}
-}
-
-#[command]
-#[description("Check how many promoters there are")]
-async fn promoters(ctx: &SlashContext<()>) -> DefaultCommandResult {
-    let members = ctx.http_client().guild_members(ctx.interaction.guild_id.unwrap()).await?.model().await?;
-    let promoters = members
-        .iter()
-        .filter(|member| {
-            member
-                .roles
-                .contains(&Id::<RoleMarker>::new(1297596217198510210u64))
-        })
-        .count();
-
-    ctx.interaction_client
-        .create_response(
-            ctx.interaction.id,
-            &ctx.interaction.token,
-            &InteractionResponse {
-                kind: InteractionResponseType::ChannelMessageWithSource,
-                data: Some(InteractionResponseData {
-                    content: Some(format!("There are {promoters} promoters right now!")),
-                    ..Default::default()
-                }),
-            },
-        )
-        .await?;
-
-    Ok(())
 }
